@@ -60,8 +60,8 @@ define :runit_service, :directory => nil, :only_if => false, :options => Hash.ne
     to node[:runit][:sv_bin]
   end
 
-  link "#{node[:runit][:service_dir]}/#{params[:name]}" do 
-    to "#{sv_dir_name}"
+  execute "update-service -a '#{sv_dir_name}'" do
+    not_if "update-service --check '#{params[:name]}'"
   end
 
   service params[:name] do
