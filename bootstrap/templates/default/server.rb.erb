@@ -37,5 +37,11 @@ solr_heap_size "250M"
 solr_data_path File.join(supportdir, "solr", "data")
 solr_home_path File.join(supportdir, "solr", "home")
 solr_heap_size "256M"
+umask <%= @node[:bootstrap][:chef][:umask] %>
+
+# See http://wiki.opscode.com/display/chef/Securing+Chef+Server
+# For more information on these settings.
+#authorized_openid_providers   [ "https://<%= @node[:bootstrap][:chef][:server_fqdn]%>", "https://chef", "myopenid.com" ]
+#authorized_openid_identifiers [ "" ]
 
 Mixlib::Log::Formatter.show_time = <%= @show_time %>
