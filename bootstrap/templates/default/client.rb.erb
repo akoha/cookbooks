@@ -7,20 +7,18 @@
 log_level          :info
 log_location       <%= @client_log %>
 ssl_verify_mode    :verify_none
-registration_url    "<%= @node[:bootstrap][:chef][:url_type] %>://<%= @node[:bootstrap][:chef][:server_fqdn] %>:<%= @node[:bootstrap][:chef][:server_port] %>"
-template_url        "<%= @node[:bootstrap][:chef][:url_type] %>://<%= @node[:bootstrap][:chef][:server_fqdn] %>:<%= @node[:bootstrap][:chef][:server_port] %>"
-remotefile_url      "<%= @node[:bootstrap][:chef][:url_type] %>://<%= @node[:bootstrap][:chef][:server_fqdn] %>:<%= @node[:bootstrap][:chef][:server_port] %>"
-search_url          "<%= @node[:bootstrap][:chef][:url_type] %>://<%= @node[:bootstrap][:chef][:server_fqdn] %>:<%= @node[:bootstrap][:chef][:server_port] %>"
-role_url            "<%= @node[:bootstrap][:chef][:url_type] %>://<%= @node[:bootstrap][:chef][:server_fqdn] %>:<%= @node[:bootstrap][:chef][:server_port] %>"
-client_url          "<%= @node[:bootstrap][:chef][:url_type] %>://<%= @node[:bootstrap][:chef][:server_fqdn] %>:<%= @node[:bootstrap][:chef][:server_port] %>"
-chef_server_url     "<%= @node[:bootstrap][:chef][:url_type] %>://<%= @node[:bootstrap][:chef][:server_fqdn] %>:<%= @node[:bootstrap][:chef][:server_port] %>"
+<% case @node[:bootstrap][:chef][:url_type] -%>
+<% when "http" -%>
+chef_server_url    "http://<%= @node[:bootstrap][:chef][:server_fqdn] %>:<%= @node[:bootstrap][:chef][:server_port] %>"
+<% when "https" -%>
+chef_server_url    "https://<%= @node[:bootstrap][:chef][:server_fqdn] %>"
+<% end -%>
 
-validation_client_name  "validator"
-validation_key      	"/etc/chef/validation.key"
-client_key          	"/etc/chef/client.pem"
+validation_client_name "<%= @node[:bootstrap][:chef][:validation_client_name] %>"
+validation_key      	 "/etc/chef/validation.pem"
+client_key          	 "/etc/chef/client.pem"
 
 file_cache_path     "<%= @node[:bootstrap][:chef][:cache_path] %>"
-
 pid_file            "<%= @node[:bootstrap][:chef][:run_path] %>/chef-client.pid"
 
 Mixlib::Log::Formatter.show_time = <%= @show_time %>

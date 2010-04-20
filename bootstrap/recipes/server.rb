@@ -21,8 +21,6 @@
 # limitations under the License.
 #
 
-CHEF_08_GEMS_RELEASED = false
-
 root_group = value_for_platform(
   "openbsd" => { "default" => "wheel" },
   "freebsd" => { "default" => "wheel" },
@@ -30,30 +28,51 @@ root_group = value_for_platform(
 )
 
 include_recipe "bootstrap::client"
-include_recipe "rabbitmq"
-include_recipe "rabbitmq::chef"
-include_recipe "java"
 
 case node[:platform]
 when "ubuntu"
-  if node[:platform_version].to_f >= 8.10
+  if node[:platform_version].to_f >= 9.10
     include_recipe "couchdb"
+  elsif node[:platform_version].to_f >= 8.10
+    include_recipe "couchdb::source"
   end
+
+  include_recipe "java"
+  include_recipe "rabbitmq_chef"
+
 when "debian"
-  if node[:platform_version].to_f >= 5.0 || node[:platform_version] =~ /.*sid/
+  if node[:platform_version] =~ /.*sid/
     include_recipe "couchdb"
+  else
+    include_recipe "couchdb::source"
   end
+
+  include_recipe "java"
+  include_recipe "rabbitmq_chef"
+
 when "centos","redhat","fedora"
+  include_recipe "java"
   include_recipe "couchdb"
+  include_recipe "rabbitmq_chef"
 else
   Chef::Log.info("Unknown platform for CouchDB. Manual installation of CouchDB required.")
+  Chef::Log.info("Unknown platform for RabbitMQ. Manual installation of RabbitMQ required.")
+  Chef::Log.info("Unknown platform for Java. Manual installation of Java required.")
+  Chef::Log.info("Components that rely on these packages being installed may fail to start.")
 end
 
-if CHEF_08_GEMS_RELEASED
-  %w{ chef-server chef-server-slice chef-solr }.each do |gem|
-    gem_package gem do
-      version node[:bootstrap][:chef][:server_version]
-    end
+include_recipe "zlib"
+include_recipe "xml"
+
+%w{ chef-server chef-server-api chef-solr }.each do |gem|
+  gem_package gem do
+    version node[:bootstrap][:chef][:server_version]
+  end
+end
+
+if node[:bootstrap][:chef][:webui_enabled]
+  gem_package "chef-server-webui" do
+    version node[:bootstrap][:chef][:server_version]
   end
 end
 
@@ -77,29 +96,7 @@ template "/etc/chef/server.rb" do
   )
 end
 
-bash "Create WebUI SSL Certificate" do
-  cwd "/etc/chef"
-  code <<-EOH
-  umask 077
-  openssl genrsa 2048 > webui.key
-  openssl req -subj "#{node[:chef][:server_ssl_req]}" -new -x509 -nodes -sha1 -days 3650 -key webui.key > webui.crt
-  cat webui.key webui.crt > webui.pem
-  EOH
-  not_if { File.exists?("/etc/chef/webui.pem") }
-end
-
-bash "Create Validation SSL Certificate" do
-  cwd "/etc/chef"
-  code <<-EOH
-  umask 077
-  openssl genrsa 2048 > validation.key
-  openssl req -subj "#{node[:chef][:server_ssl_req]}" -new -x509 -nodes -sha1 -days 3650 -key validation.key > validation.crt
-  cat validation.key validation.crt > validation.pem
-  EOH
-  not_if { File.exists?("/etc/chef/validation.pem") }
-end
-
-%w{ openid cache search_index openid/cstore openid/store }.each do |dir|
+%w{ cache search_index }.each do |dir|
   directory "#{node[:bootstrap][:chef][:path]}/#{dir}" do
     owner "root"
     group root_group
@@ -128,6 +125,7 @@ when "runit"
   service "chef-server" do
     restart_command "sv int chef-server"
   end
+  runit_service "chef-server-webui" if node[:bootstrap][:chef][:webui_enabled]
 when "init"
   show_time  = "true"
 
@@ -142,6 +140,10 @@ when "init"
   service "chef-server" do
     action :nothing
   end
+
+  service "chef-server-webui" do
+    action :nothing
+  end if node[:bootstrap][:chef][:webui_enabled]
 
   Chef::Log.info("You specified service style 'init'.")
   Chef::Log.info("'init' scripts available in #{node[:languages][:ruby][:gems_dir]}/gems/chef-#{node[:bootstrap][:chef][:client_version]}/distro")
