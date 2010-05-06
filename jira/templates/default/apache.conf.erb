@@ -1,4 +1,4 @@
-<VirtualHost *:80>
+<VirtualHost *:<%= @port %>>
   DocumentRoot <%= @node[:jira][:install_path] %>
   ServerAdmin ops@<%= @node[:domain] %>
   <% if @node[:jira][:virtual_host_name] -%>
@@ -16,6 +16,13 @@
   RewriteEngine On
   RewriteLog <%= @node[:apache][:log_dir] %>/jira-rewrite.log
   RewriteLogLevel 0
+  <% if @ssl_certificate_path -%>
+  SSLEngine On
+  SSLCertificateFile <%= @ssl_certificate_path %>
+  <% if @ssl_key_path -%>
+  SSLCertificateKeyFile <%= @ssl_key_path %>
+  <% end -%>
+  <% end -%>
 
 	<Proxy *>
 	  Order deny,allow
@@ -27,6 +34,11 @@
 
   RewriteEngine On
 
+  <% if @ssl_certificate_path and @node[:jira][:version].match(/^.*-(\d+)(\.\d+)*$/)[1].to_i >= 4 -%>
+  RewriteRule ^/(.*)$ http://127.0.0.1:8443/$1 [P,QSA,L]
+  ProxyPassReverse / https://127.0.0.1:8443
+  <% else -%>
   RewriteRule ^/(.*)$ http://127.0.0.1:8080/$1 [P,QSA,L]
   ProxyPassReverse / http://127.0.0.1:8080
+  <% end -%>
 </VirtualHost>
